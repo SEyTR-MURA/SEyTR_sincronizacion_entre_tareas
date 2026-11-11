@@ -117,12 +117,12 @@ desde que la alta pidió el cerrojo.
 ### El interbloqueo: 3, 4 y 5
 
 A y B tienen la misma prioridad. En cada vuelta toman un mutex, esperan
-10 ms con el primero tomado, toman el otro, los usan 1 ms, los sueltan y
+10 ms con el primero tomado, toman el otro, los usan 1 ms, los devuelven (*give*) y
 descansan 5 ms. Esa espera con el primer mutex tomado es la que hace que, en
 la 3, el cruce ocurra en cada ejecución y no de vez en cuando.
 
 En la 5, el segundo mutex se pide con un plazo de 20 ms. Si vence, la tarea
-suelta el que tiene, cuenta un reintento, espera y vuelve a empezar. La
+devuelve el que tiene, cuenta un reintento, espera y vuelve a empezar. La
 espera de reintento es la misma para A y B, larga (8 ms) o corta (3 ms). La
 comparación que importa es con lo que tarda la otra tarea en volver a tomar
 su primer mutex tras ganar un cruce: 1 ms de uso más 5 de descanso, 6 ms. La
@@ -146,7 +146,7 @@ espera un aviso y, por cada uno que toma, tarda el tiempo de atención en
 volver a esperar.
 
 - En la **6**, los avisos van por un semáforo binario. `xSemaphoreGive()`
-  devuelve `pdFALSE` si el semáforo ya estaba dado, y la productora cuenta ese
+  devuelve `pdFALSE` si el semáforo ya estaba disponible, y la productora cuenta ese
   aviso como no guardado.
 - En la **7**, van por un semáforo contador de cuenta máxima 10 y cuenta
   inicial 0. Solo se pierde un aviso si la cuenta está en el máximo.
@@ -204,7 +204,7 @@ placa. Si no coincide, se explica a qué puede deberse la diferencia.
 - **`2`, con herencia.** *Esperado:* la prioridad de la baja sube a 8, la de
   la alta, en cuanto la alta se bloquea esperando el mutex. La media no puede
   expulsarla y espera. La alta espera unos 20 ms, solo el trabajo de la baja,
-  y la media calcula después, de unos 20 a unos 50 ms. Al soltar el mutex, la
+  y la media calcula después, de unos 20 a unos 50 ms. Al devolver el mutex, la
   baja vuelve a su prioridad. La herencia acota la espera de la alta al tiempo
   que la baja retiene el mutex, pero no la elimina.
 
@@ -230,7 +230,7 @@ placa. Si no coincide, se explica a qué puede deberse la diferencia.
   *Observado:* como se esperaba: las vueltas de cada tarea crecen unas 91 por
   informe y no hay ningún reintento.
 - **`5`, plazo y reintento, espera larga.** *Esperado:* A y B se cruzan como
-  en la 3, pero vence un plazo, y la tarea suelta su primer mutex. La otra lo
+  en la 3, pero vence un plazo, y la tarea devuelve su primer mutex. La otra lo
   toma, aunque su propio plazo esté venciendo en ese mismo tick, porque al
   despertar la toma mira si el mutex está libre antes de mirar el plazo. En
   cada cruce, una de las dos completa su vuelta: no hay bloqueo activo. La que
@@ -248,7 +248,7 @@ placa. Si no coincide, se explica a qué puede deberse la diferencia.
 - **`5`, plazo y reintento, espera corta (tecla `e`).** *Esperado:* en el
   primer cruce, las dos piden su segundo mutex en el mismo tick, así que sus
   dos plazos vencen también en el mismo tick. Pierde la que se ejecuta
-  primero en ese tick: suelta su mutex y la otra lo toma. Ahora la que perdió
+  primero en ese tick: devuelve su mutex y la otra lo toma. Ahora la que perdió
   vuelve a tomar su primer mutex a los 3 ms, antes que la otra, y en el cruce
   siguiente es otra vez ella quien pide primero y pierde. Esa tarea no
   completa ninguna vuelta y solo cuenta reintentos, que crecen unos 60 por
@@ -268,7 +268,7 @@ placa. Si no coincide, se explica a qué puede deberse la diferencia.
   el emulador.
 - **`6`, binario.** *Esperado:* con los valores de partida, en cada ráfaga se
   atiende el primer aviso enseguida. Mientras se atiende, el segundo deja el
-  semáforo dado y los tres siguientes no se guardan. Se atienden 2 de cada 5:
+  semáforo disponible y los tres siguientes no se guardan. Se atienden 2 de cada 5:
   en cada informe, los dados crecen unos 50, los atendidos 20 y los no
   guardados 30. Con 1 aviso por
   ráfaga no se pierde ninguno. Un semáforo binario sirve para avisar de que
@@ -277,7 +277,7 @@ placa. Si no coincide, se explica a qué puede deberse la diferencia.
   *Observado:* como se esperaba: con los valores de partida, 2 atendidos de
   cada 5, y con 1 aviso por ráfaga, ninguno perdido. Con 50 ms de atención, se
   atienden también 2 avisos por ráfaga, cualquiera que sea su tamaño a partir
-  de 2: el primero enseguida y el que deja el semáforo dado. Las cuentas
+  de 2: el primero enseguida y el que deja el semáforo disponible. Las cuentas
   cuadran en todos los informes.
 - **`7`, contador.** *Esperado:* la cuenta guarda los avisos de cada ráfaga y
   se vacía antes de la siguiente. Ningún aviso sin guardar. Con 50 ms de
@@ -377,7 +377,7 @@ por programa. Después reinicia la placa.
   `__NOINIT_ATTR`.
 - Espressif, ESP-IDF v6.1, núcleo de FreeRTOS:
   [`semphr.h`](https://github.com/espressif/esp-idf/blob/v6.1/components/freertos/FreeRTOS-Kernel/include/freertos/semphr.h)
-  (el semáforo binario no tiene herencia de prioridad; se crea vacío),
+  (el semáforo binario no tiene herencia de prioridad; se crea no disponible),
   [`tasks.c`](https://github.com/espressif/esp-idf/blob/v6.1/components/freertos/FreeRTOS-Kernel/tasks.c)
   (herencia de prioridad y su devolución) y
   [`queue.c`](https://github.com/espressif/esp-idf/blob/v6.1/components/freertos/FreeRTOS-Kernel/queue.c)

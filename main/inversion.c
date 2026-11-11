@@ -31,8 +31,15 @@
  * Lo esperado, según este código: sin herencia, la espera de la alta es el
  * trabajo de la baja más el cálculo de la media; con herencia, solo el trabajo
  * de la baja. Las duraciones son de procesador, no de reloj (trabajo_cpu_ms(),
- * en comun.c): una espera de reloj seguiría pasando mientras la baja está
- * expulsada, y la media no alargaría nada.
+ * en comun.c), que solo avanzan mientras la tarea se ejecuta. Con el orden de
+ * este ejemplo, la baja avisa a la media antes de empezar su trabajo: sin
+ * herencia, la media la expulsa en ese momento y calcula entera antes que
+ * ella; con herencia, espera. El trabajo de la baja no se corta a mitad, así
+ * que una espera de reloj, como esp_rom_delay_us(), daría aquí las mismas
+ * esperas. Se notaría si la media llegara a mitad de ese trabajo: el reloj
+ * seguiría contando con la baja expulsada (lo que mostró la prueba en placa
+ * de U4-S1) y la media no alargaría nada. Contar el trabajo en tiempo de
+ * procesador no depende del orden de los avisos.
  *
  * Las tres tareas duran mucho menos que los 5 s del plazo del watchdog de
  * tareas, así que la tarea inactiva del núcleo 0 se ejecuta a tiempo y no hay
@@ -136,8 +143,8 @@ void inversion_crear(char v)
 {
     s_variante = v;
     if (v == '1') {
-        /* Un semáforo binario se crea vacío; para usarlo como cerrojo, se da
-         * una vez, y queda libre. */
+        /* Un semáforo binario se crea no disponible; para usarlo como
+         * cerrojo, se da una vez, y queda disponible. */
         s_cerrojo = xSemaphoreCreateBinary();
         if (s_cerrojo != NULL) {
             xSemaphoreGive(s_cerrojo);

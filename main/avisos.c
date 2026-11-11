@@ -16,14 +16,14 @@
  *
  * Teclas: «b» cambia el número de avisos de cada ráfaga y «a» el tiempo de
  * atención. Como «m», reinician la placa, igual que las del conjunto de
- * recursos: así las medidas empiezan con el semáforo vacío y las dos tareas
- * en su primera vuelta, y las cuentas del informe cuadran desde el principio.
- * Ponerlas a cero sin reiniciar dejaría avisos dados antes y atendidos
- * después.
+ * recursos: así las medidas empiezan con el semáforo no disponible y las dos
+ * tareas en su primera vuelta, y las cuentas del informe cuadran desde el
+ * principio. Ponerlas a cero sin reiniciar dejaría avisos dados antes y
+ * atendidos después.
  *
  * Cómo cuadran las cuentas. Cada aviso dado acaba en uno de tres sitios: no
- * se guardó (semáforo lleno), ya se atendió, o sigue pendiente. En los
- * semáforos, dados = no guardados + atendidos + cuenta ahora. En la
+ * se guardó (el semáforo no admitía más), ya se atendió, o sigue pendiente.
+ * En los semáforos, dados = no guardados + atendidos + cuenta ahora. En la
  * notificación, dados = atendidos + perdidos al tomar + pendientes ahora. Las
  * medidas se leen una tras otra mientras las tareas siguen, así que la suma
  * puede diferir en uno o dos.
@@ -35,8 +35,9 @@
  * capacidad de atención.
  *
  * Binario: el primer aviso de cada ráfaga se toma enseguida. Mientras se
- * atiende, el segundo aviso deja el semáforo dado y los tres siguientes no
- * caben: xSemaphoreGive() devuelve pdFALSE. Se atienden 2 de cada 5.
+ * atiende, el segundo aviso deja el semáforo disponible y los tres
+ * siguientes no caben: xSemaphoreGive() devuelve pdFALSE. Se atienden 2 de
+ * cada 5.
  *
  * Contador: la cuenta guarda los avisos de la ráfaga, hasta CUENTA_MAXIMA, y
  * se vacía antes de la ráfaga siguiente. No se pierde ninguno. Si la media de
@@ -137,7 +138,7 @@ void avisos_crear(char v)
 {
     s_variante = v;
     if (v == '6') {
-        s_semaforo = xSemaphoreCreateBinary();  /* se crea vacío */
+        s_semaforo = xSemaphoreCreateBinary();  /* se crea no disponible */
     } else if (v == '7') {
         s_semaforo = xSemaphoreCreateCounting(CUENTA_MAXIMA, 0);
     }

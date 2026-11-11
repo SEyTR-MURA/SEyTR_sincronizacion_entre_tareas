@@ -2,14 +2,14 @@
  *
  * Dos tareas, A y B, de la misma prioridad y fijadas al núcleo 0, usan dos
  * mutex, M1 y M2. En cada vuelta toman uno, esperan ESPERA_ENTRE_MS con una
- * espera bloqueante, toman el otro, usan los dos un momento, los sueltan y
+ * espera bloqueante, toman el otro, usan los dos un momento, los devuelven y
  * descansan antes de la vuelta siguiente:
  *
  *   3 orden contrario: A toma M1 y después M2; B toma M2 y después M1. Sin
  *     plazo
  *   4 orden fijo: las dos toman M1 y después M2
  *   5 orden contrario, con plazo al tomar el segundo mutex: si vence, la tarea
- *     suelta el primero, cuenta un reintento, espera y vuelve a empezar. La
+ *     devuelve el primero, cuenta un reintento, espera y vuelve a empezar. La
  *     tecla «e» cambia esa espera de reintento entre corta (REINTENTO_CORTO_MS)
  *     y larga (REINTENTO_LARGO_MS), y reinicia la placa
  *
@@ -21,40 +21,42 @@
  * espera entre los dos mutex es la que hace que el cruce ocurra en cada
  * ejecución, y no de vez en cuando.
  *
- * El watchdog de tareas no avisa: por omisión vigila las tareas inactivas, y con A y B
- * bloqueadas la del núcleo 0 se ejecuta. El resto del programa sigue: la
- * tarea de control escribe su informe cada INFORME_MS con el estado de las dos
- * tareas y quién tiene cada mutex.
+ * El watchdog de tareas no avisa: por omisión vigila las tareas inactivas,
+ * y con A y B bloqueadas la del núcleo 0 se ejecuta. El resto del programa
+ * sigue: la tarea de control escribe su informe cada INFORME_MS con el
+ * estado de las dos tareas y quién tiene cada mutex.
  *
  * En la 4 no hay ciclo de espera: quien tiene M1 consigue también M2. Las
  * vueltas de las dos avanzan.
  *
  * En la 5 se cruzan igual que en la 3, pero vence un plazo. En el primer
  * cruce las dos piden su segundo mutex en el mismo tick, y los dos plazos
- * vencen en el mismo tick; la que se ejecuta antes suelta su primer mutex y
- * la otra lo toma, aunque su plazo también haya vencido: xQueueSemaphoreTake()
- * mira la cuenta antes que el plazo (queue.c). Cuál se ejecuta antes no lo
- * fija este código: en la placa perdió B, y en el emulador, A. Desde el segundo cruce, la que pidió antes pierde y
- * la otra, que sigue esperando, toma el mutex que se suelta. En cada cruce una
- * de las dos completa su vuelta, así que no hay bloqueo activo. Lo que pasa
- * después depende de cuándo vuelve a tomar su primer mutex cada tarea. La que
- * ganó lo vuelve a tomar USO_MS + DESCANSO_MS después de que la otra soltara
- * el suyo (6 ms); la que perdió, tras su espera de reintento. La que lo toma
- * antes pide antes el segundo y pierde el cruce siguiente:
+ * vencen en el mismo tick; la que se ejecuta antes devuelve su primer mutex
+ * y la otra lo toma, aunque su plazo también haya vencido:
+ * xQueueSemaphoreTake() mira la cuenta antes que el plazo (queue.c). Cuál se
+ * ejecuta antes no lo fija este código: en la placa perdió B, y en el
+ * emulador, A. Desde el segundo cruce, la que pidió antes pierde y la otra,
+ * que sigue esperando, toma el mutex que se devuelve. En cada cruce una de
+ * las dos completa su vuelta, así que no hay bloqueo activo. Pierde cada
+ * cruce la tarea que vuelve antes a tomar su primer mutex, porque pide antes
+ * el segundo. La que ganó lo vuelve a tomar USO_MS + DESCANSO_MS después de
+ * que la otra devolviera el suyo (6 ms); la que perdió, tras su espera de
+ * reintento. Con las dos esperas de este ejemplo:
  *
- *   corta (3 ms, menos de 6): la que perdió vuelve a tomar su primer mutex
- *     antes que la otra, pide primero otra vez y vuelve a perder. La otra
- *     avanza; la que perdió no completa ninguna vuelta y solo cuenta
- *     reintentos. El programa no está bloqueado y aun así una tarea no avanza
- *   larga (8 ms, más de 6): la que ganó empieza la vuelta siguiente antes, y
- *     ahora es ella quien pide primero y pierde. Las dos avanzan, por turnos:
- *     cada vuelta de una es un reintento de la otra
+ *   corta (3 ms): la que perdió vuelve a tomar su primer mutex antes que la
+ *     otra, pide primero otra vez y vuelve a perder. La otra avanza; la que
+ *     perdió no completa ninguna vuelta y solo cuenta reintentos. El
+ *     programa no está bloqueado y aun así una tarea no avanza
+ *   larga (8 ms): la que ganó empieza la vuelta siguiente antes, y ahora es
+ *     ella quien pide primero y pierde. Las dos avanzan, por turnos: cada
+ *     vuelta de una es un reintento de la otra
  *
- * Con 6 ms justos, las dos despiertan en el mismo tick, la que perdió va
- * primero en la lista de preparadas y vuelve a perder. Las dos tareas usan la
- * misma espera de reintento: lo que decide es esa espera frente al uso y el
- * descanso de la otra, no que sean distintas. El plazo saca del interbloqueo,
- * pero no asegura que cada tarea avance. El remedio es el orden fijo de la
+ * Lo anterior vale para estas dos esperas, no como regla. Con una espera
+ * bastante más larga no tiene por qué haber turnos: la que ganó puede
+ * completar otra vuelta sin cruzarse con la otra, y la que perdió, volver a
+ * perder. Las dos tareas usan la misma espera de reintento: lo que cambia el
+ * resultado no es que sean distintas. El plazo saca del interbloqueo, pero
+ * no asegura que cada tarea avance. El remedio es el orden fijo de la
  * variante 4.
  *
  * Salir de la 3 no es posible sin reiniciar: las tareas no van a despertar.
